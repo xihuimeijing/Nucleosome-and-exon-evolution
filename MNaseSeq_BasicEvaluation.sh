@@ -80,6 +80,6 @@ bwtool agg 500:200:500 $exonBed $occupancy exon_meta_profile.tsv
 Rscript /mnt/share/liym/bin/lines.R -i=exon_meta_profile.tsv -x="Exon relative position" -y="Normalized nucleosome occupancy" -c="blue" -o=exon_meta_profile.tsv.pdf
 bwtool agg 500:100 $exonBed $occupancy exon_up_profile.tsv -starts
 Rscript /mnt/share/liym/bin/lines.R -i=exon_up_profile.tsv -x="Exon relative position" -y="Normalized nucleosome occupancy" -c="blue" -o=exon_up_profile.tsv.pdf
-bwtool agg 100:100 $exonBed $occupancy exon_down_profile.tsv -starts
+bwtool agg 100:500 $exonBed $occupancy exon_down_profile.tsv -ends
 Rscript /mnt/share/liym/bin/lines.R -i=exon_down_profile.tsv -x="Exon relative position" -y="Normalized nucleosome occupancy" -c="blue" -o=exon_down_profile.tsv.pdf
 
