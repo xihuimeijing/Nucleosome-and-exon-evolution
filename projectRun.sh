@@ -1,6 +1,6 @@
 #!/bin/sh
 #Author: Yumei Li, 2017/11/20
-#E-mail: liyumei@puk.edu.cn
+#E-mail: liyumei@pku.edu.cn
 #This is the whole pipeline for nucleosome project processing.(Data are located at pluto and jupiter)
 scriptPath=/mnt/share/liym/nucleosome/scripts
 #1 Data processing and evaluation
