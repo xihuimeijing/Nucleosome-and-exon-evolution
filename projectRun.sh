@@ -455,7 +455,7 @@ perl /mnt/share/liym/bin/commonAncestorFromMaf.pl -m 5species.maf -t hg19 -q rhe
 cd /rd1/user/liym/nucleosome/mutiSpecies/exonAge/final_list/ss_motif
 ls ../*H.bed6|while read file;do
         prefix=$(basename $file|sed 's/.H.bed6//');
-        awk -v OFS="\t" '{if($6=="+"){print $1,$3-3,$3+20,$4,$5,$6}else{print $1,$2-20,$2+3,$4,$5,$6}}' $file >${prefix}.3ss.bed6 ##20 bases in intron,3 bases in exon
+        awk -v OFS="\t" '{if($6=="+"){print $1,$2-20,$2+3,$4,$5,$6}else{print $1,$3-3,$3+20,$4,$5,$6}}' $file >${prefix}.3ss.bed6 ##20 bases in intron,3 bases in exon
 done;
 fastaFromBed -name -s -fi /mnt/share/liym/data/genome/mm9/mm9.fa -bed mm9.H----.3ss.bed6 -fo H----.mm9.3ss.fa
 fastaFromBed -name -s -fi /mnt/share/liym/data/genome/hg19/hg19.fa -bed hg19.H----.3ss.bed6 -fo H----.hg19.3ss.fa
