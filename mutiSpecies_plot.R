@@ -1,4 +1,4 @@
-setwd("E:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/GC_evolution/hg19_regions")
+setwd("D:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/GC_evolution/hg19_regions")
 nc<-read.delim(file="H.Hancestor.intergenic.NCgt2.GC",header=F)
 nf<-read.delim(file="H.Hancestor.intergenic.NClt0.5.GC",header=F)
 par(mfrow=c(2,2))
@@ -21,7 +21,6 @@ abline(a=0,b=1,col="red")
 plot(ecdf(nc[,2]-nc[,6]),verticals = T, do.points=F, col="red", xlab="GC difference(hg19-susScr3)",main="Intron 100bp window")
 lines(ecdf(nf[,2]-nf[,6]),verticals = T, do.points=F,col="blue")
 legend("topleft",c("NC>2","NC<0.5"),col=c("red","blue"),lty=1)
-
 
 
 gt1<-read.delim(file="HRTMS.intron.NCgt1.GC",header=F)
@@ -80,10 +79,10 @@ ggplot(data,aes(x=variable,y=value,fill=variable))+geom_violin(trim = F,fill=NA)
   panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_rect(fill="white"),panel.border = element_rect(colour="black",fill=NA))+ylim(0,1.2)
 human<-read.delim(file="H-R-newAnces-hg19.txt",header=T)
 human<-ggplot(human,aes(x=mutation,y=rate,fill=Class))+geom_bar(stat="identity",color="black",width=0.6,position=position_dodge())+scale_fill_grey(start=0.5,end=1.0)+geom_errorbar(aes(ymin=rate-sd,ymax=rate+sd),width=0.1,position=position_dodge(0.6))+theme(
-  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_rect(fill="white"),panel.border = element_rect(colour="black",fill=NA))
+  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_rect(fill="white"),panel.border = element_rect(colour="black",fill=NA))+ylim(c(0,0.03))
 monkey<-read.delim(file="H-R-newAnces-rheMac2.txt",header=T)
 monkey<-ggplot(monkey,aes(x=mutation,y=rate,fill=Class))+geom_bar(stat="identity",color="black",width=0.6,position=position_dodge())+scale_fill_grey(start=0.5,end=1.0)+geom_errorbar(aes(ymin=rate-sd,ymax=rate+sd),width=0.1,position=position_dodge(0.6))+theme(
-  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_rect(fill="white"),panel.border = element_rect(colour="black",fill=NA))
+  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_rect(fill="white"),panel.border = element_rect(colour="black",fill=NA))+ylim(c(0,0.04))
 grid.arrange(human,monkey,ncol=1,nrow=2) 
 
 ancestor<-read.delim(file="NCdiff.adjacent.3ss.ancestor.tsv",header=F)
@@ -193,6 +192,8 @@ ann_colors=list(tissue=c(brain=myColors[1],heart=myColors[2],kidney=myColors[3],
                 ,species=c(human=myColors[4],monkey=myColors[6],tree=myColors[7],mouse=myColors[8],pig="black"))
 pheatmap(subData,cluster_rows=T, cluster_cols=T, clustering_distance_rows = "correlation",clustering_distance_cols = "correlation",show_rownames = F,show_colnames = F
          ,annotation_row = annotation,annotation_col = annotation, annotation_colors = ann_colors, border_color = NA)
+heatmap.2(as.matrix(subData),Rowv=,distfun=dist,Colv=NULL,scale="row",srtCol=0,adjCol=c(0.5,0.5),col=colorpanel(100,"blue","black","yellow"),dendrogram ="none",labRow ="",key.title = "log2(FC)", trace="none",density.info="none")
+
 annotation<-as.data.frame(strsplit(rownames(data),"_"),stringsAsFactors = F)
 annotation[8,2]<-"liver"
 annotation[9,2]<-"liver"
@@ -204,6 +205,41 @@ ann_colors=list(tissue=c(brain=myColors[1],heart=myColors[2],kidney=myColors[3],
                 ,species=c(human=myColors[4],monkey=myColors[6],tree=myColors[7],mouse=myColors[8],pig="black"))
 pheatmap(data,cluster_rows=T, cluster_cols=T, clustering_distance_rows = "correlation",clustering_distance_cols = "correlation",show_rownames = F,show_colnames = F
          ,annotation_row = annotation,annotation_col = annotation, annotation_colors = ann_colors)
+setwd("D:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/position/heatmap/consensus/")
+shuffled=read.delim(file="correlation.shuffled.txt",header = F,row.names = 1)
+data<-read.delim(file="correlation.txt",header = F,row.names = 1)
+hist<-hist(data[,2],breaks=200,plot=F)
+hist$counts<-hist$counts/sum(hist$counts)
+plot(hist$mids,hist$counts,type='n',xlab="Correlation",ylab="Frequency")
+for(i in 2:ncol(data)){
+  hist<-hist(data[,i],breaks=200,plot=F)
+  hist$counts<-hist$counts/sum(hist$counts)
+  lines(smooth.spline(hist$mids, hist$counts, df=200), col="blue")
+}
+for(i in 1:ncol(shuffled)){
+  hist<-hist(shuffled[,i],breaks=200,plot=F)
+  hist$counts<-hist$counts/sum(hist$counts)
+  lines(smooth.spline(hist$mids, hist$counts, df=200), col="gray")
+}
+####Only macaque
+nowlolors=myColors[c(1,2,3,9,10)]
+for(i in 2:6){
+  hist<-hist(data[,i],breaks=200,plot=F)
+  hist$counts<-hist$counts/sum(hist$counts)
+  lines(smooth.spline(hist$mids, hist$counts, df=200), col=nowlolors[i])
+}
+pvalues=''
+for(i in 2:ncol(data)){
+  pvalues[i-1]=wilcox.test(shuffled[,1],data[,i],alternative = "l")$p.value
+}
+plot(ecdf(shuffled[,1]),verticals = T, do.points=F,col="gray", xlab="Correlation",ylab="Cumulative distribution frequency",main="")
+abline(h=0.5,v=0,col="gray",lty=2)
+for(i in 2:ncol(data)){
+  lines(ecdf(data[,i]),verticals = T, do.points=F, col="blue")
+}
+for(i in 2:ncol(shuffled)){
+  lines(ecdf(shuffled[,i]),verticals = T, do.points=F, col="gray")
+}
 
 setwd("E:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/occupancy/homo_exons/")
 data<-read.delim(file="meanSummary.tsv",header=F)
@@ -266,7 +302,7 @@ for(i in 1:nrow(data)){
   }
 }
 #No significant result!
-setwd("E:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/occupancy/homo_genes/")
+setwd("D:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/occupancy/homo_genes/")
 data<-read.delim(file="TSSprofile.sum.txt",header=F)
 names2<-c("monkey-liver","tree-heart","tree-kidney","tree-muscle","mouse-brain","mouse-heart","mouse-kidney","mouse-liver","mouse-muscle","pig-brain","pig-heart","pig-kidney","pig-liver")
 colnames(data)<-c("pos",names2)
@@ -296,7 +332,24 @@ setwd("./expression/")
 data<-read.delim(file="FPKM.summary.tsv",header=T)
 cor<-cor(data[,c(3:ncol(data))])
 pheatmap(cor,cluster_rows = T,cluster_cols = T,show_rownames = T,show_colnames = T)
-
+##Heatmap 
+data<-read.delim(file="version2/TSSprofile.21Samples.txt",header=T)
+data<-t(data[,-1])
+data<-data[c(1:7,13:21,8:12),]
+annotation<-as.data.frame(strsplit(rownames(data),'.',fixed = T),stringsAsFactors = F)
+rownames(annotation)<-c("species","tissue")
+colnames(annotation)<-rownames(data)
+annotation<-as.data.frame(t(annotation))
+myColors=rainbow(10)
+ann_colors=list(tissue=c(brain=myColors[1],heart=myColors[2],kidney=myColors[3],liver=myColors[9],muscle=myColors[10])
+                ,species=c(human=myColors[4],monkey=myColors[6],treeshrew=myColors[7],mouse=myColors[8],pig="black"))
+pheatmap(data,cluster_rows = F,cluster_cols = F,clustering_distance_rows="correlation",show_rownames = F,show_colnames = F,annotation_row = annotation,annotation_colors = ann_colors,breaks = seq(-4,6,length.out = 101),scale = "row")
+pheatmap(data[,c(501:2500)],cluster_rows = F,cluster_cols = F,clustering_distance_rows="correlation",show_rownames = F,show_colnames = F,annotation_row = annotation,annotation_colors = ann_colors,breaks = seq(-3.2,5,length.out = 101),scale = "row")
+rst<-rowMeans(scale(t(data[,c(501:2500)])))
+plot(seq(-999,1000,length.out = 2000),rst,type="l",col="blue",ylab="z-score of NOC",xlab="Gene TSS")
+pheatmap(data[,c(1001:2000)],cluster_rows = F,cluster_cols = F,clustering_distance_rows="correlation",show_rownames = F,show_colnames = F,annotation_row = annotation,annotation_colors = ann_colors,breaks = seq(-2.5,4,length.out = 101),scale = "row")
+pheatmap(data[,c(1001:2500)],cluster_rows = F,cluster_cols = F,clustering_distance_rows="correlation",show_rownames = F,show_colnames = F,annotation_row = annotation,annotation_colors = ann_colors,breaks = seq(-2.7,4.4,length.out = 101),scale = "row")
+pheatmap(data[,c(1201:2500)],cluster_rows = F,cluster_cols = F,clustering_distance_rows="correlation",show_rownames = F,show_colnames = F,annotation_row = annotation,annotation_colors = ann_colors,scale = "row",breaks = seq(-2.7,4.1,length.out = 101))
 #position
 data<-read.delim(file="summary.distance.filter.tsv",header=F)
 colnames(data)<-c("chr","start","end","monkey-liver","mouse-brain","mouse-heart","mouse-kidney","mouse-liver","mouse-muscle","pig-brain","pig-heart","pig-kidney","pig-liver","tree-heart","tree-kidney","tree-muscle")
@@ -457,6 +510,23 @@ boxplot(others[others$V2=="HRTMS",3],others[others$V2=="HRTMS",4],others[others$
 setwd("../../burge/")
 data<-read.delim(file="brain_logNC.tsv",header = F)
 boxplot(V8~V7,data,ylab="Exon/up-intron logNC ratio",outline=F,ylim=c(-4,6))
+
+###Inhouse data version
+setwd("D:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/exonAge/list_inhouseData/")
+par(bty="n")
+final=read.delim(file="final.54List",header=F)
+data<-read.delim(file="brain.5species.uplogNC.tsv",header=F)
+b_s<-read.delim(file="supportBybrain",header=F)
+data<-merge(b_s,data,by.x="V1",by.y = "V1")
+boxplot(data[,-1],outline=F,ylab="NOC ratio",ylim=c(-5,10),names = c("human","monkey","treeShrew","mouse","pig"))
+pheatmap(data[,-1],show_rownames = F,show_colnames = F,cluster_rows = F,cluster_cols = F,color = colorRampPalette(c("navy", "white", "firebrick3"))(50),scale = "row")
+data<-read.delim(file="summary.uplogGC.tsv",header=F)
+b_s<-read.delim(file="supportBybrain",header=F)
+boxplot(data[,-1],outline=F,ylab="Exon/up-intron GC log ratio",names = c("human","monkey","treeShrew","mouse","pig"),ylim=c(-1,2))
+data<-read.delim(file="summary.3ss.tsv",header=F)
+data<-merge(b_s,data,by.x="V1",by.y = "V1")
+boxplot(data[,-1],outline=F,ylab="Splice score of acceptor site",names = c("human","monkey","treeShrew","mouse","pig"),ylim=c(-30,30))
+data<-read.delim(file="summary.5ss.tsv",header=F)
 #DAF in rhesus
 setwd("./final_list/DAF/")
 exon<-read.delim(file="H----.rheMac2.exon.snps.GC-AT.daf.final",header=F)
@@ -490,7 +560,7 @@ boxplot(cor_d,cor_l,border =c("blue","red"),names=c("Differential GC exons","Lev
 wilcox.test(cor_d,cor_l,alternative = "g")#p=0.049
 setwd("E:/百度云同步盘/my PC D/projects/exon_evolution/monkey_tissue_data/comparison/exon_intron")
 
-setwd("E:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/evaluation/")
+setwd("D:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/evaluation/")
 data<-read.delim(file="insertSize.all.tsv",header=T,check.names = F)
 freq<-cbind(data$size,data[,2:22]/t(replicate(151,colSums(data[,2:22]))))
 colnames(freq)[1]<-"size"
@@ -499,6 +569,18 @@ ggplot(data,aes(x=size,y=value,color=variable))+geom_line(lwd=1)+labs(x="Fragmen
 data<-read.delim(file="TSS.profile.all.tsv",header=T,check.names = F)
 data<-melt(data,id.vars = 1)
 ggplot(data,aes(x=size,y=value,color=variable))+geom_line(lwd=1)+labs(x="TSS relative position(bp)",y="Normalized nucleosome occupancy")
+data_all<-read.delim(file="TSS.profile.all.tsv",header=T,check.names = F)
+data<-t(data_all[c(501:2500),-1])
+data<-data[c(1:7,13:21,8:12),]
+annotation<-as.data.frame(strsplit(rownames(data),"-"),stringsAsFactors = F)
+rownames(annotation)<-c("species","tissue")
+colnames(annotation)<-rownames(data)
+annotation<-as.data.frame(t(annotation))
+myColors=rainbow(10)
+ann_colors=list(tissue=c(brain=myColors[1],heart=myColors[2],kidney=myColors[3],liver=myColors[9],muscle=myColors[10])
+                ,species=c(human=myColors[4],monkey=myColors[6],treeshrew=myColors[7],mouse=myColors[8],pig="black"))
+pheatmap(data,cluster_rows = F,cluster_cols = F,clustering_distance_rows="correlation",show_rownames = F,show_colnames = F,annotation_row = annotation,annotation_colors = ann_colors,breaks = seq(-2.1,3.5,length.out = 101),scale = "row")
+
 data<-read.delim(file="AT_freq.tsv",header = T,check.names = F)
 data<-melt(data,id.vars = 1)
 ggplot(data,aes(x=size,y=value,color=variable))+geom_line(lwd=1)+labs(x="Dyad relative position(bp)",y="Dinucleotide frequency")+ylim(0.025,0.125)+
@@ -507,8 +589,11 @@ data<-read.delim(file="GC_freq.tsv",header=T,check.names = F)
 data<-melt(data,id.vars = 1)
 ggplot(data,aes(x=size,y=value,color=variable))+geom_line(lwd=1)+labs(x="Dyad relative position(bp)",y="Dinucleotide frequency")+
   theme(panel.grid.minor.x=element_line(size=0.5,color="white"))+scale_x_continuous(minor_breaks = seq(-1000, 1000, 10),breaks=c(-73,0,73),labels=c("-73","0","73"))
+##Only brain for mutiple species
+data<-data[,c(1,2,4,9,14,18)]
 
-setwd("E:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/Exon_intron/")
+
+setwd("D:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/Exon_intron/")
 data<-read.delim(file="exon.meta.agg.tsv",comment.char = "#",header=T,check.names = F)
 normF<-as.matrix(data[,-1])
 normF<-normF/t(replicate(nrow(normF),normF[1,]))
@@ -525,6 +610,10 @@ normMean<-cbind(data[,1],normMean)
 normMean<-melt(as.data.frame(normMean),id.vars = 1)
 ggplot(normMean,aes(x=V1,y=value,color=variable))+geom_line(lwd=1)+labs(x="Exon relative position(bp)",y="Normalized nucleosome occupancy")+
   scale_x_continuous(limits = c(-500,700),breaks = seq(-500,700,by=100))
+##Separate by species
+data<-data[data$size>=-200 & data$size<=400,]
+
+setwd("./agg")
 
 setwd("./intra-sample/")
 human<-read.delim(file="human.leveledGC.usage.uplogNC.tsv",header=F)
@@ -589,18 +678,91 @@ for(i in 1:5){
 #[21] 5.089161e-03 3.974735e-01 3.168473e-04 3.923903e-02 3.023383e-01
 setwd("./logGC_logNC/")
 files=list.files(pattern = ".tsv$")
-data<-matrix(ncol=3,nrow=0)
-colnames(data)<-c("GCdiff","logNC","sample")
+data<-matrix(ncol=5,nrow=0)
+colnames(data)<-c("GCdiff","logNC","sample","species","tissue")
 for(i in 1:length(files)){
   test<-read.delim(file=files[i],header=F)
   name=sub(".GCdiff.logNC.tsv","",files[i])
-  test<-cbind(aggregate(V3~V4,data=test[is.finite(test$V3),],FUN="mean"),rep(name,7))
-  colnames(test)<-c("GCdiff","logNC","sample")
+  species=strsplit(name,split = "-")[[1]][1]
+  tissue=strsplit(name,split = "-")[[1]][2]
+  test<-cbind(aggregate(V3~V4,data=test[is.finite(test$V3),],FUN="mean"),rep(name,7),rep(species,7),rep(tissue,7))
+  colnames(test)<-c("GCdiff","logNC","sample","species","tissue")
   data<-rbind(data,test)
 }
 data$GCdiff<-factor(data$GCdiff,levels = c("<=-20","-20--10","-10-0","0-10","10-20","20-30",">=30"))
-ggplot(data, aes(x=GCdiff, y=logNC, color=sample))+geom_point(shape=2)+geom_line(aes(group=sample),lwd=1)+labs(x="Exon/up-intron GC difference",y="log2(Exon/up-intron NC)")
+data$species<-factor(data$species)
+data$tissue<-factor(data$tissue)
+ggplot(data, aes(x=GCdiff, y=logNC))+geom_point(aes(shape=tissue,color=species))+geom_line(aes(group=sample,color=species),lwd=1)+labs(x="Exon/up-intron GC difference",y="log2(Exon/up-intron NC)")+ylim(-6,6)+theme(
+  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_rect(fill="white"),panel.border = element_rect(colour="black",fill=NA))
 
+files=list.files(pattern = "final.logGC.logNC.txt$")
+data<-matrix(ncol=5,nrow=0)
+colnames(data)<-c("GCdiff","logNC","sample","species","tissue")
+tissues=c(1,2,3,4,5)
+for(i in 1:length(files)){
+  test<-read.delim(file=files[i],header=F,row.names = 1)
+  species=sub(".common.final.logGC.logNC.txt","",files[i])
+  test<-test[,-1]
+  for(j in 1:(ncol(test)-1)){
+    tissue=tissues[j]
+    name=paste(species,tissue,sep="-")
+    #tmp<-cbind(aggregate(test[,j]~test[,ncol(test)],FUN="mean"),rep(name,6),rep(species,6),rep(tissue,6),stringsAsFactors=F)
+    tmp<-cbind(aggregate(scale(test[,j])~test[,ncol(test)],FUN="mean"),rep(name,6),rep(species,6),rep(tissue,6),stringsAsFactors=F) #Z-score normalization
+    colnames(tmp)<-c("GCdiff","logNC","sample","species","tissue")
+    data<-rbind(data,tmp,stringsAsFactors=F)
+  }
+}
+data[data$sample=="hg19-2",5]=5
+data[data$sample=="tupBel1-4",5]=5
+data$GCdiff<-factor(data$GCdiff,levels = c("<=-0.2","-0.2-0","0-0.2","0.2-0.4","0.4-0.6",">=0.6"))
+data$species<-factor(data$species)
+data$tissue<-factor(data$tissue)
+ggplot(data, aes(x=GCdiff, y=logNC))+geom_point(aes(shape=tissue,color=species))+geom_line(aes(group=sample,color=species),lwd=1)+labs(x="Exon/up-intron GC difference",y="log2(Exon/up-intron NC)")+ylim(-3,7)+theme(
+  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_rect(fill="white"),panel.border = element_rect(colour="black",fill=NA))
+##3D plot
+data$GCdiff<-as.character(data$GCdiff)
+data$sample<-as.character(data$sample)
+matrix<-matrix(0,nrow = 21, ncol=7)
+data[data$GCdiff=="<=-0.2",1]=1
+data[data$GCdiff=="-0.2-0",1]=2
+data[data$GCdiff=="0-0.2",1]=3
+data[data$GCdiff=="0.2-0.4",1]=4
+data[data$GCdiff=="0.4-0.6",1]=5
+data[data$GCdiff==">=0.6",1]=6
+data$sample<-gsub("hg19","1",data$sample)
+data$sample<-gsub("rheMac2","2",data$sample)
+data$sample<-gsub("tupBel1","3",data$sample)
+data$sample<-gsub("mm9","4",data$sample)
+data$sample<-gsub("susScr3","5",data$sample)
+data$sample<-gsub("-",".",data$sample)
+data$GCdiff<-as.numeric(data$GCdiff)
+data$sample<-as.numeric(data$sample)
+for(i in 1:6){
+  matrix[,i]<-data[data$GCdiff==i,2]
+}
+matrix[,7]<-data[data$GCdiff==1,3]
+matrix<-matrix[order(matrix[,7]),c(1:6)]
+ribbon3D(z=matrix,along="y",xlab="Samples",ylab="GC Ratio",zlab="NOC Ratio",ticktype = "detailed",nticks=10,col=colorRampPalette(c("yellow", "red"))(50))
+persp3D(z=matrix,xlab="Samples",ylab="GC Ratio",zlab="NOC Ratio",ticktype = "detailed",nticks=6,col=colorRampPalette(c("yellow", "red"))(50))
+
+GC<-read.delim(file="5species.GCdiff.txt",header=F,row.names = 1)
+GC<-GC[order(GC$V2,decreasing = T),]
+GC[GC<(-30)]=-30
+GC[GC>30]=30
+pheatmap(GC,cluster_rows = F,cluster_cols = F,show_rownames = F,breaks=seq(-30,30,length.out = 51),color = colorRampPalette(rev(rainbow(7)))(50))
+human<-read.delim(file="hg19.common.final.GC.NC.txt",header=F,row.names = 1)
+human<-human[order(human$V2,decreasing = T),]
+NC<-as.matrix(human[,c(2,3)])
+NC[NC>4]=4
+NC[NC<(-4)]=-4
+pheatmap(as.matrix(NC),cluster_rows = F,cluster_cols = F,show_rownames = F,color = colorRampPalette(c("navy", "white","firebrick3"))(50),scale = "column")
+data<-read.delim(file="rheMac2.common.final.GC.NC.txt",header=F,row.names = 1)
+data<-data[order(human$V2,decreasing = T),]
+NC<-as.matrix(data[,c(2:6)])
+NC[NC>4]=4
+NC[NC<(-4)]=-4
+pheatmap(as.matrix(NC),cluster_rows = F,cluster_cols = F,show_rownames = F,breaks=seq(-4,4,length.out = 51),color = colorRampPalette(c("navy", "white", "firebrick3"))(50))
+pheatmap(as.matrix(NC),cluster_rows = F,cluster_cols = F,show_rownames = F,color = colorRampPalette(c("navy", "white","firebrick3"))(50),scale = "column")
 setwd("E:/百度云同步盘/my PC D/projects/exon_evolution/summaryFigures/v2")
 data<-read.delim(file="胶图quantity.forR.txt",header=T,check.names = F)
 size1<-data[,c(1,2,3)]
@@ -640,3 +802,174 @@ myLine(size9,colors[15:16])
 myLine(size10,colors[17:21])
 legend<-colnames(data)[c(2,3,5,7:9,11,13:16,18,20,22,24,25,27:31)]
 legend("topright",legend=legend,col=colors,lty=1,lwd=2)
+
+#Human new exons validation
+setwd("D:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/exonAge/list_inhouseData/public_support")
+label<-read.delim(file="hg19.new.exons.v3.rmDup.list.label.txt",header = F)
+monkey<-read.delim(file="rheMac2.status.tsv",header=T,row.names = 1)
+tree<-read.delim(file="tupBel1.status.tsv",header=T,row.names = 1)
+mouse<-read.delim(file="mm9.status.tsv",header=T,row.names = 1)
+pig<-read.delim(file="susScr3.status.tsv",header=T,row.names = 1)
+annotation<-cbind(c(replicate(ncol(monkey),"monkey"),replicate(ncol(tree),"tree"),replicate(ncol(mouse),"mouse"),replicate(ncol(pig),"pig")),c(substr(colnames(monkey),1,6),substr(colnames(tree),1,6),substr(colnames(mouse),1,6),substr(colnames(pig),1,6)))
+colnames(annotation)<-c("species","individual")
+annotation<-as.data.frame(annotation)
+myColors=rainbow(10)
+ann_colors=list(species=c(monkey=myColors[6],tree=myColors[7],mouse=myColors[8],pig="black"),
+  individual=c(inhous="firebrick",indiv1=myColors[1],indiv2=myColors[2],indiv3=myColors[3],indiv4=myColors[9]))
+names<-paste("sample",c(1:65),sep="")
+rownames(annotation)<-names
+data<-cbind(monkey,tree,mouse,pig)
+data<-merge(label,cbind(row.names(data),data),by.y="row.names(data)",by.x ="V1")
+brain_o<-data[data[,2]=="b",-c(1,2)]
+bm_o<-data[data[,2]=="bm",-c(1,2)]
+muscle_o<-data[data[,2]=="m",-c(1,2)]
+
+colnames(brain_o)<-names
+pheatmap(brain_o,breaks =c(0,0.5,1),legend_breaks=c(0,0.5,1),color=colorRampPalette(c("gray","red"))(2),annotation_col = annotation, annotation_colors = ann_colors,cluster_rows =T,cluster_cols = F,show_rownames = F,show_colnames = F,border_color = NA)
+colnames(bm_o)<-names
+pheatmap(bm_o,breaks =c(0,0.5,1),legend_breaks=c(0,0.5,1),color=colorRampPalette(c("gray","red"))(2),annotation_col = annotation, annotation_colors = ann_colors,cluster_rows =T,cluster_cols = F,show_rownames = F,show_colnames = F,border_color = NA)
+colnames(muscle_o)<-names
+pheatmap(muscle_o,breaks =c(0,0.5,1),legend_breaks=c(0,0.5,1),color=colorRampPalette(c("gray","red"))(2),annotation_col = annotation, annotation_colors = ann_colors,cluster_rows =T,cluster_cols = F,show_rownames = F,show_colnames = F,border_color = NA)
+
+
+human<-read.delim(file="hg19/hg19.polymorphic.tsv",header=F)
+human<-human[,-9] ##Removed because of low mapped rate: 11%
+human<-merge(label,human,by="V1")
+human<-human[order(human[,2],decreasing = F),]
+brain<-as.matrix(human[human[,2]=="b",-c(1,2)])
+bm<-as.matrix(human[human[,2]=="bm",-c(1,2)])
+muscle<-as.matrix(human[human[,2]=="m",-c(1,2)])
+pheatmap(brain[order(rowMeans(brain),decreasing = T),],breaks =c(0,0.5,1),legend_breaks=c(0,0.5,1),color=colorRampPalette(c("gray","red"))(2),cluster_rows =F,cluster_cols = F,show_rownames = F,show_colnames = F,border_color = NA)
+pheatmap(bm[order(rowMeans(bm),decreasing = T),],breaks =c(0,0.5,1),legend_breaks=c(0,0.5,1),color=colorRampPalette(c("gray","red"))(2),cluster_rows =F,cluster_cols = F,show_rownames = F,show_colnames = F,border_color = NA)
+pheatmap(muscle[order(rowMeans(muscle),decreasing = T),],breaks =c(0,0.5,1),legend_breaks=c(0,0.5,1),color=colorRampPalette(c("gray","red"))(2),cluster_rows =F,cluster_cols = F,show_rownames = F,show_colnames = F,border_color = NA)
+
+brain_h<-human[human[,2]=="b" | human[,2]=="bm",-c(1,2)]
+brain_o<-cbind(monkey[,c(1:5)],tree[,c(1:4)],mouse[,c(1:5)],pig[,c(1:5)])
+brain_o<-merge(label,cbind(row.names(brain_o),brain_o),by.y="row.names(brain_o)",by.x ="V1")
+brain_o<-brain_o[brain_o[,2]=="b" | brain_o[,2]=="bm",-c(1,2)]
+colnames(brain_h)<-replicate(19,"human_brain")
+colnames(brain_o)<-c("macaque_brain","macaque_heart","macaque_kidney","macaque_liver","macaque_muscle","tree_brain","tree_heart","tree_kidney","tree_muscle",
+                     "mouse_brain","mouse_heart","mouse_kidney","mouse_liver","mouse_muscle","pig_brain","pig_heart","pig_kidney","pig_liver","pig_muscle")
+data<-cbind(brain_h,brain_o)
+annotation<-as.data.frame(strsplit(colnames(data),"_"))
+rownames(annotation)<-c("species","tissue")
+colnames(annotation)<-colnames(data)
+annotation<-as.data.frame(t(annotation))
+myColors=rainbow(10)
+ann_colors=list(tissue=c(brain=myColors[1],heart=myColors[2],kidney=myColors[3],liver=myColors[9],muscle=myColors[10])
+                ,species=c(human=myColors[4],macaque=myColors[6],tree=myColors[7],mouse=myColors[8],pig="black"))
+pheatmap(as.matrix(data[order(rowMeans(data[,c(1:19)]),decreasing = T),]),breaks =c(0,0.5,1),legend_breaks=c(0,0.5,1),color=colorRampPalette(c("gray","red"))(2),cluster_rows=F, cluster_cols=F,show_rownames = F,show_colnames = F
+         ,annotation_col = annotation, annotation_colors = ann_colors, border_color = NA)
+###inhouse version, final 54 exons
+hg19<-read.delim(file="hg19.polymorphic.finla54.tsv",row.names = 1,header=F)
+others<-read.delim(file="support.status.final54.tsv",row.names = 1,header=T)
+others<-others[,c(20:39,40:43,1:19,44:48)]
+tissue_o<-as.data.frame(strsplit(colnames(others),'.',fixed=T),stringsAsFactors = F,row.names = NULL, col.names = F)[2,]
+annotation<-cbind(c(replicate(19,"human"),replicate(20,"macaque"),replicate(4,"treeshrew"),replicate(5,"pig"),replicate(19,"mouse")),c(replicate(19,"brain"),as.vector(as.matrix(tissue_o))))
+colnames(annotation)<-c("species","tissue")
+names<-paste("sample",c(1:67),sep="")
+rownames(annotation)<-names
+annotation<-as.data.frame(annotation,stringsAsFactors = F)
+myColors=rainbow(10)
+ann_colors=list(species=c(human=myColors[4],macaque=myColors[6],mouse=myColors[8],treeshrew=myColors[7],pig="black"),
+                tissue=c(brain=myColors[1],heart=myColors[2],kidney=myColors[3],liver=myColors[9],muscle=myColors[10]))
+data<-cbind(as.matrix(hg19),as.matrix(others))
+colnames(data)<-names
+pheatmap(data[order(rowSums(data[,c(1:19)]),decreasing = T),],breaks =c(0,0.5,1),legend_breaks=c(0,0.5,1),color=colorRampPalette(c("gray","red"))(2),annotation_col =annotation, annotation_colors = ann_colors,cluster_rows = F,cluster_cols = F,show_rownames = F,show_colnames = F,border_color = NA)
+
+
+shuffle<-read.delim(file="hg19/shuffle/summary.txt",header=F)
+gtex<-read.delim(file="hg19/shuffle/GTEx.indiv.summary.txt",header=F)
+gtex<-gtex[-7,]
+plot(smooth.spline(shuffle$V2/1e7,shuffle$V4),type="l",xlab="Junction Read Count(10e7)",ylab="Detection Rate(%)")
+points(gtex$V2/1e7,gtex$V3/107,col="red",pch=19)
+rpkm<-read.delim(file="hg19/shuffle/human.new.exons.RPKM.bed6+",comment.char = "#",header = F)
+noSup<-read.delim(file="hg19/shuffle/notSupportedByPublic.RPKM.bed6+",header = F)
+boxplot(log2(rpkm$V8),log2(noSup$V8),ylab="log2(RPKM)",names=c("All human specific exons","Not supported by public data"),ylim=c(-4,6))
+text(1.5,5,"p=0.003")
+
+data<-read.delim(file="hg19/GTEx.readsInfor.18.txt",header=T)
+colnames(data)[c(4,5)]=c("unique","junction")
+data<-cbind(replicate(36,"public"),melt(data[,c(4,5)]))
+colnames(data)<-c("source","type","number")
+inhouse<-matrix(c("inhouse","inhouse","unique","junction",140892912,32274173),nrow = 2,byrow = F)
+colnames(inhouse)<-c("source","type","number")
+data<-rbind(data,inhouse)
+data$number<-as.numeric(data$number)
+ggplot(data,aes(x=type,y=number,color=source))+geom_boxplot(width=0.8,position = position_dodge(0.9))+stat_summary(aes(color=source),fun.y=mean, position = position_dodge(0.9),geom="point", size=2)+theme(
+  panel.grid.major =element_line(colour="gray"), panel.background = element_rect(fill="white"),panel.border = element_rect(colour="black",fill=NA))
+
+#Simulation intron and intergenic regions of human new exons in macaque
+setwd("D:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/exonAge/list_inhouseData/simulation")
+intron<-read.delim(file="intron.gt0Ratio.txt",header=F)
+interg<-read.delim(file="intergenic.gt0Ratio.txt",header=F)
+real=0.59813
+data<-rbind(cbind(real,"real"),cbind(intron$V2,replicate(nrow(intron),"intron")),cbind(interg$V2,replicate(nrow(interg),"intergenic")))
+data<-as.data.frame(data,stringsAsFactors=F)
+data[,1]<-as.numeric(data[,1])
+data[,2]<-factor(data[,2],levels = c("real","intron","intergenic"))
+colnames(data)<-c("ratio","class")
+ggplot(data,aes(x=class,y=ratio))+geom_boxplot(outlier.shape = NA,lwd=0.8,fill="gray")+stat_summary(fun.y=mean, geom="point", size=2,color="red")+theme(
+  panel.grid.major =element_line(colour="gray"), panel.background = element_rect(fill="white"),panel.border = element_rect(colour="black",fill=NA))
+##Splice site maintain for pseudoexons
+x<-matrix(c(43,19,39,30),nrow = 2,byrow = F)
+barplot(x/matrix(c(colSums(x),colSums(x)),nrow = 2,byrow = T),names.arg = c("NC ratio>1","NC ratio<-1"),ylab="Fraction of pseudoexons",col=c(gray(0.4),gray(0.9)))
+legend("topright",c("ss change>=0","ss change<0"),fill=c(gray(0.4),gray(0.9)))
+
+#New mouse exons
+setwd("D:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/exonAge/mm9NewExons")
+par(mfrow=c(1,3))
+logNC<-read.delim(file="brain.upNCratio.summary.tsv",header=F,row.names=1)
+boxplot(logNC,ylab="NOC ratio",names = c("mouse","pig","tree shrew","macaque"),outline = F,las=2)
+logGC<-read.delim(file="upGCratio.summary.tsv",header=F,row.names = 1)
+boxplot(logGC,ylab="GC ratio",names = c("mouse","pig","tree shrew","macaque"),outline = F,las=2)
+ss<-read.delim(file="ss.summary.tsv",header=F,row.names = 1)
+boxplot(ss,ylab="SPlice score of acceptor sites",names = c("mouse","pig","tree shrew","macaque"),outline = F,las=2)
+setwd("./addHuman")
+#human specific exon vs monkey
+setwd("D:/百度云同步盘/my PC D/projects/exon_evolution/mutiSpecies/exonAge/list_inhouseData/H-R")
+ss<-read.delim(file="HR.3ss.tsv",header=F)
+boxplot(ss$V2,ss$V3,names=c("human","macaque"),ylab="Splice score of acceptor sites",outline = F,ylim=c(-5,20))
+logNC<-read.delim(file="HR.brain.upNCratio.tsv",header=F)
+boxplot(logNC$V2,logNC$V3,ylab="NOC ratio",names = c("human","macaque"),outline = F,ylim=c(-5,5))
+par(mfrow=c(1,2))
+##focus on human, monkey and mouse 
+ss<-read.delim(file="hg19.specific.vsRM.3ss.tsv",header=F)
+logNC<-read.delim(file="hg19.specific.vsRM.brain.upNCratio.tsv",header=F)
+filter<-read.delim(file="public.filter.list",header=F)
+boxplot(ss[,-1],names=c("human","macaque","mouse"),ylab="Splice score of acceptor sites",outline = F,ylim=c(-50,20))
+boxplot(logNC[,-1],ylab="NOC ratio",names = c("human","macaque","mouse"),outline = F,ylim=c(-5,6))
+boxplot(merge(filter,ss,by.y="V1",by.x ="V1")[,-1],names=c("human","macaque","mouse"),ylab="Splice score of acceptor sites",outline = F)
+boxplot(merge(filter,logNC,by.y="V1",by.x ="V1")[,-1],ylab="NOC ratio",names = c("human","macaque","mouse"),outline = F,ylim=c(-5,6))
+ss5<-read.delim(file="hg19.specific.vsRM.5ss.tsv",header=F)
+boxplot(merge(filter,ss5,by.y="V1",by.x ="V1")[,-1],names=c("human","macaque","mouse"),ylab="Splice score of donor sites",outline = F,ylim=c(-50,20))
+ss<-read.delim(file="hg19.specific.vsRM.ss.withAncestor.tsv",header=F)
+boxplot(ss[,-1],names=c("ancestor","human","macaque","mouse"),ylab="Splice score of acceptor sites")
+ss5_f<-read.delim(file="hg19.specific.vsRM.5ss.publicFilter.withAncestor.tsv",header=F)
+par(mfrow=c(1,2))
+ss3_f<-merge(filter,ss,by.y="V1",by.x ="V1")
+boxplot(ss3_f$V3,ss3_f$V4,ss3_f$V5,ss3_f$V2,names=c("human","macaque","mouse","ancestor"),ylab="Splice score of acceptor sites",outline = F,las=3,ylim=c(-40,20))
+boxplot(ss5_f$V3,ss5_f$V4,ss5_f$V5,ss5_f$V2,names=c("human","macaque","mouse","ancestor"),ylab="Splice score of donor sites",outline = F,las=3,ylim=c(-40,20))
+
+setwd("./public_support")
+hg19<-read.delim(file="hg19.polymorphic.tsv",row.names = 1,header=T)
+others<-read.delim(file="support.status.tsv",row.names = 1,header=T)
+hg19<-hg19[rowMeans(others)==0,]
+others<-others[rowMeans(others)==0,]
+tissue_o<-as.data.frame(strsplit(colnames(others),'.',fixed=T),stringsAsFactors = F,row.names = NULL, col.names = F)[2,]
+annotation<-cbind(c(replicate(19,"human"),replicate(20,"macaque"),replicate(19,"mouse")),c(replicate(19,"brain"),as.vector(as.matrix(tissue_o))))
+colnames(annotation)<-c("species","tissue")
+names<-paste("sample",c(1:58),sep="")
+rownames(annotation)<-names
+annotation<-as.data.frame(annotation)
+myColors=rainbow(10)
+ann_colors=list(species=c(human=myColors[4],macaque=myColors[6],mouse=myColors[8]),
+                tissue=c(brain=myColors[1],heart=myColors[2],kidney=myColors[3],liver=myColors[9],muscle=myColors[10]))
+data<-cbind(as.matrix(hg19),as.matrix(others))
+colnames(data)<-names
+pheatmap(data[order(rowSums(data[,c(1:19)]),decreasing = T),],breaks =c(0,0.5,1),legend_breaks=c(0,0.5,1),color=colorRampPalette(c("gray","red"))(2),annotation_col =annotation, annotation_colors = ann_colors,cluster_rows = F,cluster_cols = F,show_rownames = F,show_colnames = F,border_color = NA)
+
+rpkm<-read.delim(file="hg19.specific.vsRM.hg19.exonRPKM.bed6+",comment.char = "#",header = F)
+noSup<-read.delim(file="notSupportedByPublicHumanData.RPKM.bed6+",header = F)
+boxplot(log2(rpkm$V8),log2(noSup$V8),ylab="log2(RPKM)",names=c("All human specific exons","Not supported by public data"),ylim=c(-4,6))
+text(1.5,5,"p=5.12e-9")
