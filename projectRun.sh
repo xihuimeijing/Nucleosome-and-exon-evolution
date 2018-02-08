@@ -1,6 +1,6 @@
 #!/bin/sh
 #Author: Yumei Li, 2017/11/20
-#E-mail: liyumei@pku.edu.cn
+#E-mail: liyumei@puk.edu.cn
 #This is the whole pipeline for nucleosome project processing.(Data are located at pluto and jupiter)
 scriptPath=/mnt/share/liym/nucleosome/scripts
 #1 Data processing and evaluation
@@ -215,6 +215,45 @@ awk -v OFS="\t" '{if($1!="chr"){print $1"_"$4,$6}}' ../../../human_tissues/muscl
 join.pl -i1 hg19TorheMac2.consensus.nucleosome.bed3 -f1 4 -i2 human.consensus.nucleosome.bed4+ -f2 4 -o1 >hg19TorheMac2.consensus.nucleosome.fuzzinessSort.bed4 
 computeMatrix reference-point -R hg19TorheMac2.consensus.nucleosome.fuzzinessSort.bed4 --missingDataAsZero -S human.brainTorheMac2.bw human.muscleTorheMac2.bw /rd1/user/liym/nucleosome/monkey_tissues/brain/danpos_rst/pooled/monkey_tissues_brain_final.sorted.smooth.norm.bw /rd1/user/liym/nucleosome/monkey_tissues/heart/danpos_rst/pooled/monkey_tissues_heart_final.sorted.smooth.norm.bw /rd1/user/liym/nucleosome/monkey_tissues/kidney/danpos_rst/pooled/monkey_tissues_kidney_final.sorted.smooth.norm.bw /rd1/user/liym/nucleosome/monkey_tissues/liver/danpos_rst/pooled/monkey_tissues_liver_final.sorted.smooth.norm.bw /rd1/user/liym/nucleosome/monkey_tissues/muscle/danpos_rst/pooled/monkey_tissues_muscle_final.sorted.smooth.norm.bw --referencePoint center -b 200 -a 200 -p 10 -out nucleosome.dyad.fl200.NC.matrix.gz
 plotHeatmap -m nucleosome.dyad.fl200.NC.matrix.gz -out human.monkey.nucleosome.dyad.fl200.NC.heatmap.v5.pdf --refPointLabel "0" --colorMap Blues --sortRegions no --whatToShow "heatmap and colorbar" --samplesLabel H_brain H_muscle M_brain M_heart M_kidney M_liver M_muscle --missingDataColor blue 
+##2.4 Heat map for TSS of orthologous genes
+###2.4.1 Run information in /mnt/share/liym/data/homolog/homolog_infor
+cd /rd1/user/liym/mnt/data/homolog/homolog_infor
+http://grch37.ensembl.org/biomart/martview/2acce189992d09b74555a71ef939e2ed
+sed 's/\t\t//g' HRTMS.homo.genes.tsv |awk -v FS="\t" 'NF==14' |awk '$5==1 && $8==1 && $11==1 && $14==1' >HRTMS.homo.genes.filter.tsv 
+mkdir genes
+join.pl -i1 /mnt/share/liym/data/structure/hg19/hg19.ensGene.gpe -f1 12 -i2 HRTMS.homo.genes.filter.tsv -f2 1 -o1 >genes/hg19.homo.gpe 
+join.pl -i1 /mnt/share/liym/data/structure/rheMac2/rheMac2.ensGene.noBin.gpe -f1 12 -i2 HRTMS.homo.genes.filter.tsv -f2 3 -o1 >genes/rheMac2.homo.gpe 
+join.pl -i1 /mnt/share/liym/data/structure/tupBel1/tupBel1.ensGene.noBin.gpe -f1 12 -i2 HRTMS.homo.genes.filter.tsv -f2 6 -o1 >genes/tupBel1.homo.gpe 
+join.pl -i1 /mnt/share/liym/data/structure/mm9/mm9.ensGene.gpe -f1 12 -i2 HRTMS.homo.genes.filter.tsv -f2 9 -o1 >genes/mm9.homo.gpe 
+join.pl -i1 /mnt/share/liym/data/structure/susScr3/susScr3.ensGene.noBin.gpe -f1 12 -i2 HRTMS.homo.genes.filter.tsv -f2 12 -o1 >genes/susScr3.homo.gpe 
+cd genes
+liftOver -genePred hg19.homo.gpe /data/liftover/hg19/hg19ToRheMac2.over.chain hg19TorheMac2.gpe hg19TorheMac2.unmapped 
+liftOver -genePred hg19.homo.gpe /data/liftover/hg19/hg19ToTupBel1.over.chain hg19TotupBel1.gpe hg19TotupBel1.unmapped
+liftOver -genePred hg19.homo.gpe /data/liftover/hg19/hg19ToMm9.over.chain hg19Tomm9.gpe hg19Tomm9.unmapped
+liftOver -genePred hg19.homo.gpe /mnt/share/liym/data/liftOver/hg19ToSusScr3.over.chain hg19TosusScr3.gpe hg19TosusScr3.unmapped
+/mnt/share/liym/bin/comm_custom.sh 1,1,1,1 hg19TorheMac2.gpe,hg19TotupBel1.gpe,hg19Tomm9.gpe,hg19TosusScr3.gpe commonTrans.list
+sort commonTrans.list |uniq >tmp;mv tmp commonTrans.list
+ls hg19To*.gpe|sed 's/.gpe//'|while read file;do
+	join.pl -i1 ${file}.gpe -f1 1 -i2 commonTrans.list -f2 1 -o1|sort|uniq >${file}.final.gpe
+done;
+join.pl -i1 hg19.homo.gpe -i2 commonTrans.list -o1|sort|uniq >hg19Tohg19.final.gpe
+###2.4.2 Calculate nucleosome occupancy across TSS of orthologous
+cd /rd1/user/liym/nucleosome/mutiSpecies/occupancy
+mkdir homo_genes && cd homo_genes
+/mnt/share/liym/nucleosome/scripts/TSSprofile_bwtool.sh -u 1500 -d 1500 -g /mnt/share/liym/data/homolog/homolog_infor/genes/hg19TotupBel1.final.gpe -b /rd1/user/liym/nucleosome/treeShrew_tissues/heart/danpos_rst/pooled/heart_norm.bw,/rd1/user/liym/nucleosome/treeShrew_tissues/kidney/danpos_rst/pooled/kidney_norm.bw,/rd1/user/liym/nucleosome/treeShrew_tissues/muscle/danpos_rst/pooled/muscle_norm.bw -o tupBel1.homo.TSSprofile.txt
+/mnt/share/liym/nucleosome/scripts/TSSprofile_bwtool.sh -u 1500 -d 1500 -g /mnt/share/liym/data/homolog/homolog_infor/genes/hg19TosusScr3.final.gpe -b /mnt/share/liym/nucleosome/pig_tissue_data/brain/pig_brain_norm.bw,/mnt/share/liym/nucleosome/pig_tissue_data/heart/pig_heart_norm.bw,/mnt/share/liym/nucleosome/pig_tissue_data/kidney/pig_kidney_norm.bw,/mnt/share/liym/nucleosome/pig_tissue_data/liver/pig_liver_norm.bw -o susScr3.homo.TSSprofile.txt
+/mnt/share/liym/nucleosome/scripts/TSSprofile_bwtool.sh -u 1500 -d 1500 -g /mnt/share/liym/data/homolog/homolog_infor/genes/hg19Tomm9.final.gpe -b /rd1/user/liym/nucleosome/mouse_tissues/brain/mouse_brain_norm.bw,/rd1/user/liym/nucleosome/mouse_tissues/heart/mouse_heart_norm.bw,/rd1/user/liym/nucleosome/mouse_tissues/kidney/mouse_kidney_norm.bw,/rd1/user/liym/nucleosome/mouse_tissues/liver/mouse_liver_norm.bw,/rd1/user/liym/nucleosome/mouse_tissues/muscle/mouse_muscle_norm.bw -o mm9.homo.TSSprofile.txt
+/mnt/share/liym/nucleosome/scripts/TSSprofile_bwtool.sh -u 1500 -d 1500 -g /mnt/share/liym/data/homolog/homolog_infor/genes/hg19TorheMac2.final.gpe -b /rd1/user/liym/nucleosome/monkey_tissues/liver/danpos_rst/pooled/liver_norm.bw -o rheMac2.homo.TSSprofile.txt
+Rscript /mnt/share/liym/bin/lines.R -i=TSSprofile.sum.txt -x="TSS relative position" -y="Normalized nucleosome occupancy" -c="#FF0000FF,#FF7600FF,#FFEB00FF,#9DFF00FF,#27FF00FF,#00FF4EFF,#00FFC4FF,#00C4FFFF,#004EFFFF,#2700FFFF,#9D00FFFF,#FF00EBFF,#FF0076FF" -l="monkey-liver,tree-heart,tree-kidney,tree-muscle,mouse-brain,mouse-heart,mouse-kidney,mouse-liver,mouse-muscle,pig-brain,pig-heart,pig-kidney,pig-liver" -o=TSSprofile.all.pdf
+ls /mnt/share/liym/data/homolog/homolog_infor/genes/hg19To*.final.gpe|while read file;do 
+        species=$(basename $file|sed 's/.final.gpe//'|sed 's/hg19To//');
+        ls /rd1/user/liym/nucleosome/mutiSpecies/data/${species}/*.norm.bw|while read line;do echo -ne "$line," >>tmp.txt;done;
+        NCfile=$(sed 's/,$//' tmp.txt);
+        /mnt/share/liym/nucleosome/scripts/TSSprofile_bwtool.sh -u 1500 -d 1500 -g $file -b $NCfile -o version2/TSSprofile/${species}.homo.TSSprofile.txt;
+        rm tmp.txt;
+done;
+paste TSSprofile/hg19.homo.TSSprofile.txt <(cut -f2- TSSprofile/rheMac2.homo.TSSprofile.txt) <(cut -f2- TSSprofile/tupBel1.homo.TSSprofile.txt) <(cut -f2- TSSprofile/mm9.homo.TSSprofile.txt) <(cut -f2- TSSprofile/susScr3.homo.TSSprofile.txt) >TSSprofile.21Samples.txt
+cat <(head -n1 /rd1/user/liym/nucleosome/mutiSpecies/evaluation/TSS.profile.all.tsv) TSSprofile.21Samples.txt>tmp;mv tmp TSSprofile.21Samples.txt 
 #3 Calculate exon-intron NC log ratio and GC log ratio
 ## 3.1 GC log ratio(GC difference) for 5 species
 cd /mnt/share/liym/data/structure
@@ -389,7 +428,7 @@ done;
 species="susScr3"
 sample=17
 tag="S"
-###4.3.3 Assign ages to huaman exons
+###4.3.3 Assign ages to human exons
 cd ~/nucleosome/assignExonAge/list_v3/pairwiseAln
 perl ~/nucleosome/scripts/assignExonAge.pl -hg hg19.initial.exon.bed6 -o rheMac2/rheMac2.tag.final.bed12+,tupBel1/tupBel1.tag.final.bed12+,mm9/mm9.tag.final.bed12+,susScr3/susScr3.tag.final.bed12+ >exon_age.tsv
 awk '$7=="H----"' exon_age.tsv >hg19.exonAge.bed6+ 
@@ -415,6 +454,113 @@ join.pl -i1 hg19_rheMac2.bed6+ -f1 4 -i2 final.list -o1 |cut -f1-6 >rheMac2.H.be
 join.pl -i1 hg19_tupBel1.bed6+ -f1 4 -i2 final.list -o1 |cut -f1-6 >tupBel1.H.bed6
 join.pl -i1 hg19_mm9.bed6+ -f1 4 -i2 final.list -o1 |cut -f1-6 >mm9.H.bed6
 join.pl -i1 hg19_susScr3.bed6+ -f1 4 -i2 final.list -o1 |cut -f1-6 >susScr3.H.bed6
+##4.4 Used inhouse data supported humane exons @Jupiter
+cd /rd1/user/liym/nucleosome/assignExonAge/list_inhouseData
+###4.4.1 Get initial human exon list
+join.pl -i1 ../list_v2/pairwiseAln/hg19.initial.exon.bed6 -f1 4 -i2 ../species_exon/hg19/hg19.all.internal.exon.bed6 -f2 4 -o1 >hg19.initial.exon.bed6
+ls ../GTEx_hg19/cov/inhouse_*|while read file;do
+   tissue=$(basename $file|cut -f2 -d '_'|sed 's/.bg.bw//');
+   perl ~/bin/bigWigSummaryForBed.pl -bed hg19.initial.exon.bed6 -bw $file >hg19.${tissue}.depth 2>${tissue}.depth.err;
+   perl ~/nucleosome/scripts/sum_junctionReadsForExon.pl -e hg19.${tissue}.depth -j ../GTEx_hg19/junc/inhouse_${tissue}.chr.junc.bed >hg19.${tissue}.depth.junc &
+done;
+mkdir criterion_1 && cd criterion_1
+awk '$15<=0.2 && $16==0 && $17==0' ../rheMac2/*.dpkm.junc|cut -f1-14|sort|uniq -c|awk -v OFS="\t" '$1==5{print $2,$3,$4,$5,$6,$7}'|bedtools intersect -v -a stdin -b ~/nucleosome/assignExonAge/species_exon/rheMac2/merged.uniq.exon.bed >R.noExon.bed6
+awk '$15<=0.2 && $16==0 && $17==0' ../tupBel1/*.dpkm.junc|cut -f1-14|sort|uniq -c|awk -v OFS="\t" '$1==4{print $2,$3,$4,$5,$6,$7}'|bedtools intersect -v -a stdin -b ~/nucleosome/assignExonAge/species_exon/tupBel1/merged.uniq.exon.bed >T.noExon.bed6
+awk '$15<=0.2 && $16==0 && $17==0' ../mm9/*.dpkm.junc|cut -f1-14|sort|uniq -c|awk -v OFS="\t" '$1==5{print $2,$3,$4,$5,$6,$7}'|bedtools intersect -v -a stdin -b ~/nucleosome/assignExonAge/species_exon/mm9/merged.uniq.exon.bed >M.noExon.bed6
+awk '$15<=0.2 && $16==0 && $17==0' ../susScr3/*.dpkm.junc|cut -f1-14|sort|uniq -c|awk -v OFS="\t" '$1==5{print $2,$3,$4,$5,$6,$7}'|bedtools intersect -v -a stdin -b ~/nucleosome/assignExonAge/species_exon/susScr3/merged.uniq.exon.bed >S.noExon.bed6
+####human, monkey, and mouse three species
+mkdir H-R && cd H-R
+comm -13 <(cut -f1-3,6 ~/nucleosome/assignExonAge/list_v2/pairwiseAln/rheMac2/tmp.bed6+|sort|uniq -c|awk -v OFS="\t" '$1>1{print $2,$3,$4,"","0",$5}'|bedtools intersect -s -f 1.0 -r -a ~/nucleosome/assignExonAge/list_v2/pairwiseAln/rheMac2/tmp.bed6+ -b stdin|cut -f4|sort|uniq) <(join.pl -i1 ~/nucleosome/assignExonAge/list_v2/pairwiseAln/rheMac2/tmp.bed6+ -f1 4 -i2 ../../hg19.brainSupported.bed6 -f2 4 -o1|cut -f4|sort|uniq)|join.pl -i2 ../R.noExon.bed6 -f2 4 -o1 >HvsR.exon
+comm -13 <(cut -f1-3,6 ~/nucleosome/assignExonAge/list_v2/pairwiseAln/mm9/tmp.bed6+|sort|uniq -c|awk -v OFS="\t" '$1>1{print $2,$3,$4,"","0",$5}'|bedtools intersect -s -f 1.0 -r -a ~/nucleosome/assignExonAge/list_v2/pairwiseAln/mm9/tmp.bed6+ -b stdin|cut -f4|sort|uniq) <(join.pl -i1 ~/nucleosome/assignExonAge/list_v2/pairwiseAln/mm9/tmp.bed6+ -f1 4 -i2 ../../hg19.brainSupported.bed6 -f2 4 -o1|cut -f4|sort|uniq)|join.pl -i2 ../M.noExon.bed6 -f2 4 -o1 >HvsM.exon
+comm -12 <(sort HvsR.exon) <(sort HvsM.exon) >hg19.specific.vsRM.list
+join.pl -i1 ~/nucleosome/assignExonAge/list_v2/pairwiseAln/rheMac2/tmp.bed6+ -f1 4 -i2 hg19.specific.vsRM.list -o1 |cut -f1-6 >hg19.specific.vsRM.rheMac2.bed6
+join.pl -i1 ../../hg19.initial.exon.bed6 -f1 4 -i2 hg19.specific.vsRM.list -o1 |cut -f1-6 >hg19.specific.vsRM.hg19.bed6
+join.pl -i1 ~/nucleosome/assignExonAge/list_v2/pairwiseAln/mm9/tmp.bed6+ -f1 4 -i2 hg19.specific.vsRM.list -o1 |cut -f1-6 >hg19.specific.vsRM.mm9.bed6
+ls *vsRM*.bed6|while read file;do species=$(echo $file|cut -f4 -d '.');perl /mnt/share/liym/nucleosome/scripts/spliceSite_score.pl -b $file -f /mnt/share/liym/data/genome/${species}/${species}.fa >hg19.specific.vsRM.${species}.ss.tsv 2>ss.log & done;
+##public support
+mkdir public_support & cd public_support
+###rheMac2
+ls ../../pulic_support/rheMac2/*/*.bw|while read file;do
+        indiv=$(echo $file|cut -f5 -d '/');
+        tissue=$(basename $file|sed 's/.bg.bw//');
+        perl ~/bin/bigWigSumForGenome.pl -c /data/chr.size/rheMac2.size -bw $file >rheMac2/${indiv}.${tissue}.total &
+        perl ~/bin/bigWigSummaryForBed.pl -bed ../hg19.specific.vsRM.rheMac2.bed6 -bw $file >rheMac2/${indiv}.${tissue}.depth
+done;
+ls rheMac2/*.depth|while read file;do
+        indiv=$(basename $file|cut -f1 -d '.');
+        tissue=$(basename $file|cut -f2 -d '.');
+        perl ~/nucleosome/scripts/sum_junctionReadsForExon.pl -e $file -j ../../pulic_support/rheMac2/${indiv}/${tissue}.bed >rheMac2/${indiv}.${tissue}.depth.junc;
+        total=$(cat rheMac2/${indiv}.${tissue}.total|tr -d '\n');
+        awk -v var=$total '{for(i=1;i<=6;i++){printf $i"\t"}print ($7/var)*1e9"\t"$8"\t"$9}' rheMac2/${indiv}.${tissue}.depth.junc >rheMac2/${indiv}.${tissue}.dpkm.junc
+done;
+ls ../../../rheMac2/*dpkm.junc |while read file;do
+        tissue=$(basename $file|cut -f2 -d '.');
+        join.pl -i1 $file -f1 4 -i2 ../hg19.specific.vsRM.rheMac2.bed6 -f2 4 -o1|cut -f1-6,15-17 >rheMac2/inhouse.${tissue}.dpkm.junc;
+done;
+###mm9
+ls ../../pulic_support/mm9/*/*/*.bw|while read file;do
+        indiv=$(echo $file|cut -f5 -d '/');
+        tissue=$(echo $file|cut -f6 -d '/');
+        perl ~/bin/bigWigSumForGenome.pl -c /data/chr.size/mm9.size -bw $file >mm9/${indiv}.${tissue}.total &
+        perl ~/bin/bigWigSummaryForBed.pl -bed ../hg19.specific.vsRM.mm9.bed6 -bw $file >mm9/${indiv}.${tissue}.depth
+done;
+ls mm9/*.depth|while read file;do
+        indiv=$(basename $file|cut -f1 -d '.');
+        tissue=$(basename $file|cut -f2 -d '.');
+        perl ~/nucleosome/scripts/sum_junctionReadsForExon.pl -e $file -j ../../pulic_support/mm9/${indiv}/${tissue}/junc.bed12 >mm9/${indiv}.${tissue}.depth.junc;
+        total=$(cat mm9/${indiv}.${tissue}.total|tr -d '\n');
+        awk -v var=$total '{for(i=1;i<=6;i++){printf $i"\t"}print ($7/var)*1e9"\t"$8"\t"$9}' mm9/${indiv}.${tissue}.depth.junc >mm9/${indiv}.${tissue}.dpkm.junc;
+done;
+ls ../../../mm9/*dpkm.junc |while read file;do
+        tissue=$(basename $file|cut -f2 -d '.');
+        join.pl -i1 $file -f1 4 -i2 ../hg19.specific.vsRM.mm9.bed6 -f2 4 -o1 |cut -f1-6,15-17>mm9/inhouse.${tissue}.dpkm.junc;
+done;
+
+cat <(echo "name") <(cut -f4 ../hg19.specific.vsRM.rheMac2.bed6|sort) >support.status.tsv;
+ls */*dpkm.junc|while read file;do
+        species=$(echo $file|cut -f1 -d '/');
+        prefix=$(basename $file|sed 's/.dpkm.junc//');
+        paste support.status.tsv <( cat <(echo $species"_"$prefix) <(awk -v OFS="\t" '{if($7<=0.2 && $8==0 && $9==0){print $4,"0"}else{print $4,"1"}}' $file|sort -k1,1|cut -f2)) >tmp;
+        mv tmp support.status.tsv;
+done;
+###hg19
+sed 's/chr//g' ../hg19.specific.vsRM.hg19.bed6 >hg19.specific.vsRM.noChr.bed6
+cat ../../pulic_support/brain.sampleID.final.18|while read file;do
+        prefix=$(echo $file|awk '{print $1}'|cut -f6 -d '/'|sed 's/.bam//');
+        perl /mnt/share/liym/nucleosome/scripts/sum_junctionReadsForExon.pl -e hg19.specific.vsRM.noChr.bed6 -j ~/nucleosome/assignExonAge/GTEx_hg19/junc_all/${prefix}.junc.bed12 |awk -v OFS="\t" '{print "chr"$1,$2,$3,"chr"$4,$5,$6,$7,$8}' >hg19/${prefix}.junc;
+done;
+join.pl -i1 ~/nucleosome/assignExonAge/list_inhouseData/hg19.brain.depth.junc -f1 4 -i2 ../hg19.specific.vsRM.hg19.bed6 -f2 4 -o1 >hg19/inhouse.brain.depth.junc
+cat <(echo "name") <(cut -f4 ../hg19.specific.vsRM.hg19.bed6) >hg19.polymorphic.tsv
+ls -r hg19/*junc|while read file;do 
+        prefix=$(basename $file|cut -f1 -d '.');
+        paste hg19.polymorphic.tsv <( cat <(echo $prefix) <(awk -v OFS="\t" '{if($7>0 && $8>0){print $4,"1"}else{print $4,"0"}}' $file|sort -k1,1|cut -f2)) >tmp;
+        mv tmp hg19.polymorphic.tsv ;
+done;
+awk '{sum=0;for(i=2;i<=NF;i++){sum+=$i}if(sum==0){print $1}}' support.status.tsv |grep -v "name" >public.filter.list 
+perl /rd1/user/zhangsj/bin/regionRPKM_mem.pl -b ../hg19.specific.vsRM.hg19.bed6 -l fr-firststrand ~/nucleosome/assignExonAge/GTEx_hg19/inhouse_brain/uniq.sorted.bam > hg19.specific.vsRM.hg19.exonRPKM.bed6+ 2> regionRPKM.log
+awk '{sum=0;for(i=2;i<=NF;i++){sum+=$i}if(sum==2){print $1}}' hg19.polymorphic.tsv|join.pl -i1 hg19.specific.vsRM.hg19.exonRPKM.bed6+ -f1 4 -o1 >notSupportedByPublicHumanData.RPKM.bed6+      
+##Final table
+cat ../../../species_exon/hg19/ensGene.exon.bed6 ../../../species_exon/hg19/genscan.exon.bed6 ../../../species_exon/hg19/knownGene.exon.bed6 ../../../species_exon/hg19/refGene.exon.bed6 ../../../species_exon/hg19/vegaGene.exon.bed6 |bedtools intersect -f 1.0 -r -a hg19.specific.vsRM.hg19.bed6 -b stdin -wo >hg19.specific.vsRM.hg19.source.tsv 
+join.pl -i1 hg19.specific.vsRM.hg19.source.tsv -f1 4 -i2 public_support/public.filter.list -o1 |awk -v OFS="\t" '{split($10,a,"|");print $1,$2,$3,$4,$5,$6,$10,a[1]}'|join.pl -f1 8 -i2 /mnt/share/liym/data/structure/hg19/gff/all.gpe -f2 1 |cut -f1-8,20 >human.specific.vsRM.finalList.annotation.bed6+
+perl ../format.pl human.specific.vsRM.finalList.annotation.bed6+ >human.specific.vsRM.finalList.annotation.final.tsv 
+####human, monkey, tree shrew, mouse and pig five species
+comm -12 <(comm -12 <(comm -12 <(comm -12 <(cut -f4 R.noExon.bed6|sort) <(cut -f4 T.noExon.bed6|sort)) <(cut -f4 M.noExon.bed6|sort)) <(cut -f4 S.noExon.bed6|sort)) <(awk '$8>0 && $9>0' ../hg19.brain.depth.junc|cut -f4 |sort) >hg19.new.exons.v3.list
+comm -23 hg19.new.exons.v3.bed6 <(sort ../potential.Dup.list) >hg19.new.exons.v3.rmDup.list
+cat ../../species_exon/hg19/ensGene.exon.bed6 ../../species_exon/hg19/genscan.exon.bed6 ../../species_exon/hg19/knownGene.exon.bed6 ../../species_exon/hg19/refGene.exon.bed6 ../../species_exon/hg19/vegaGene.exon.bed6 |bedtools intersect -f 1.0 -r -a hg19.new.exons.v3.hg19.bed6 -b stdin -wo >human.new.exons.v3.source.tsv
+awk -v OFS="\t" '{split($10,a,"|");print $1,$2,$3,$4,$5,$6,$10,a[1]}' human.new.exons.v3.source.tsv|join.pl -f1 8 -i2 /mnt/share/liym/data/structure/hg19/gff/all.gpe -f2 1 |cut -f1-8,20 >human.new.exons.v3.supportBybrain.annotation.bed6+
+perl format.pl human.new.exons.v3.supportBybrain.annotation.bed6+ >human.new.exons.v3.supportBybrain.annotation.final.tsv 
+join.pl -i1 human.new.exons.v3.supportBybrain.annotation.final.tsv -f1 4 -i2 H-R/public_support/public.filter.list -o1 >human.new.exons.v3.supportBybrain.annotation.final.54.tsv
+mkdir pulic_support && cd pulic_support
+mkdir hg19 && cd hg19
+sed 's/chr//g' ../../hg19.new.exons.v3.hg19.bed6 >hg19.new.exons.v3.hg19.noChr.bed6
+cat ../brain.sampleID.downloadInfor|while read file;do
+        prefix=$(echo $file|awk '{print $1}'|cut -f6 -d '/'|sed 's/.bam//');
+        perl /mnt/share/liym/nucleosome/scripts/sum_junctionReadsForExon.pl -e hg19.new.exons.v3.hg19.noChr.bed6 -j ~/nucleosome/assignExonAge/GTEx_hg19/junc_all/${prefix}.junc.bed12 |awk -v OFS="\t" '{print "chr"$1,$2,$3,"chr"$4,$5,$6,$7,$8}' >${prefix}.junc;
+        done;
+cut -f4 ../../human.new.exons.v3.supportBybrain.annotation.final.54.tsv >hg19.polymorphic.tsv
+ls *GTEX*|while read file;do paste hg19.polymorphic.tsv <(awk '{if($7>0 && $8>0){print "1"}else{print "0"}}' $file) >tmp;mv tmp hg19.polymorphic.tsv ;done;
+paste <(join.pl -i1 ../../../hg19.brain.depth.junc -f1 4 -i2 ../final.list -o1|awk '{if($8>0 && $9>0){print $4"\t1"}else{print $4"\t0"}}'|sort -k1,1) <(cut -f2- hg19.polymorphic.tsv) >tmp;mv tmp hg19.polymorphic.tsv
+
 #5 Nucleosome mediated exon evolution @pluto
 cd /rd1/user/liym/nucleosome/mutiSpecies/exonAge
 ## 5.1 NC log ratio & GC log ratio & splice score
@@ -455,7 +601,7 @@ perl /mnt/share/liym/bin/commonAncestorFromMaf.pl -m 5species.maf -t hg19 -q rhe
 cd /rd1/user/liym/nucleosome/mutiSpecies/exonAge/final_list/ss_motif
 ls ../*H.bed6|while read file;do
         prefix=$(basename $file|sed 's/.H.bed6//');
-        awk -v OFS="\t" '{if($6=="+"){print $1,$2-20,$2+3,$4,$5,$6}else{print $1,$3-3,$3+20,$4,$5,$6}}' $file >${prefix}.3ss.bed6 ##20 bases in intron,3 bases in exon
+        awk -v OFS="\t" '{if($6=="+"){print $1,$3-3,$3+20,$4,$5,$6}else{print $1,$2-20,$2+3,$4,$5,$6}}' $file >${prefix}.3ss.bed6 ##20 bases in intron,3 bases in exon
 done;
 fastaFromBed -name -s -fi /mnt/share/liym/data/genome/mm9/mm9.fa -bed mm9.H----.3ss.bed6 -fo H----.mm9.3ss.fa
 fastaFromBed -name -s -fi /mnt/share/liym/data/genome/hg19/hg19.fa -bed hg19.H----.3ss.bed6 -fo H----.hg19.3ss.fa
